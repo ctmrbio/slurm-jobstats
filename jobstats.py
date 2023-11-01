@@ -2,7 +2,7 @@
 """Slurm jobstats on Gandalf."""
 __author__ = "Fredrik Boulund"
 __date__ = "2023"
-__version__ = "0.2"
+__version__ = "0.3"
 
 from sys import argv, exit
 import os
