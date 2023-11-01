@@ -2,7 +2,7 @@
 """Slurm jobstats on Gandalf."""
 __author__ = "Fredrik Boulund"
 __date__ = "2023"
-__version__ = "0.1"
+__version__ = "0.2"
 
 from sys import argv, exit
 import os
@@ -79,7 +79,8 @@ def parse_timedelta(timestring):
         td = datetime.timedelta(minutes=t.minute, seconds=t.second, microseconds=t.microsecond)
     else:
         td = pd.to_timedelta(timestring) 
-    return td
+    seconds = td / datetime.timedelta(seconds=1)
+    return seconds
 
 
 def parse_mem(job):
