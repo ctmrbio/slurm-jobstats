@@ -22,10 +22,6 @@ def parse_args():
     parser.add_argument("--start", default="now-1week", help="Start of time interval [%(default)s].")
     parser.add_argument("--outfile", default="jobstats.csv", help="Output data to csv table [%(default)s].")
 
-    if len(argv) < 2:
-        parser.print_help()
-        exit(1)
-    
     return parser.parse_args()
 
 
@@ -116,11 +112,15 @@ if __name__ == "__main__":
 
     print(f"Found {jobs.shape[0]} COMPLETED jobs since {args.start}, summary:")
     print(jobs.describe())
-    print("Showing random subsample (10) of found jobs:")
     cols = [
         "Jobid", "AllocCPUS","TotalCPU", "Elapsed", "MaxRSS", "ReqMem", "CPU_Efficiency", "MEM_Efficiency"
     ]
-    print(jobs[cols].sample(10))
+    if jobs.shape[0] < 10:
+        print("Found less than 10 jobs:")
+        print(jobs[cols])
+    else:
+        print(f"Showing random subsample of found jobs (10/{jobs.shape[0]}):")
+        print(jobs[cols].sample(10))
 
     jobs.to_csv(args.outfile)
     print(f"Wrote complete output to {args.outfile}")
