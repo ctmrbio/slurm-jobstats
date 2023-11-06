@@ -2,9 +2,10 @@
 """Slurm jobstats on Gandalf."""
 __author__ = "Fredrik Boulund"
 __date__ = "2023"
-__version__ = "0.3"
+__version__ = "0.4"
 
 from sys import argv, exit
+from collections import defaultdict
 import os
 import datetime
 import shlex
@@ -13,14 +14,28 @@ import subprocess
 
 import pandas as pd
 
-SACCT_FORMAT = "Jobid,Partition,AllocCPUS,TotalCPU,ReqMem,MaxRSS,Start,End,Elapsed,State,Jobname"
+SACCT_FORMAT = ",".join([
+    "Jobid",
+    "Partition",
+    "AllocCPUS",
+    "TotalCPU",
+    "ReqMem",
+    "MaxRSS",
+    "Start",
+    "End",
+    "Elapsed",
+    "State",
+    "Jobname",
+])
 
 def parse_args():
-
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--user", default=os.environ.get('USER'), help="Username [%(default)s].")
-    parser.add_argument("--start", default="now-1week", help="Start of time interval [%(default)s].")
-    parser.add_argument("--outfile", default="jobstats.csv", help="Output data to csv table [%(default)s].")
+    parser.add_argument("--user", default=os.environ.get('USER'),
+            help="Username [%(default)s].")
+    parser.add_argument("--start", default="now-1week",
+            help="Start of time interval [%(default)s].")
+    parser.add_argument("--outfile", default="jobstats.csv",
+            help="Output data to csv table [%(default)s].")
 
     return parser.parse_args()
 
@@ -34,7 +49,7 @@ def call_sacct(user, start):
 
 
 def parse_sacct(results):
-    jobs = []
+    jobs = defaultdict(dict)
     for row in results:
         job = dict(zip(SACCT_FORMAT.split(","), row.split("|")))
         if not job["Jobid"]:
@@ -48,20 +63,22 @@ def parse_sacct(results):
         job["End"] = pd.to_datetime(job["End"])
         job["Elapsed"] = parse_timedelta(job["Elapsed"])
 
-        jobs.append(job)
+        if ".batch" in job["Jobid"]:
+            # .batch lines from sacct contain memory usage info in 
+            # MaxRSS column that is not populated in normal lines
+            job["Jobid"] = job["Jobid"].split(".")[0]
+            jobs[job["Jobid"]]["MaxRSS"] = job["MaxRSS"]
+            continue
+
+        jobs[job["Jobid"]] = job
 
     if len(jobs) < 1:
         print("ERROR: Found no jobs!")
         exit(1)
 
-    df = pd.DataFrame(jobs)
+    df = pd.DataFrame(jobs.values())
 
-    # Some munging to shift data onto .batch rows to 
-    # populate all columns and clean up jobids
-    df["Jobname"] = df["Jobname"].shift(periods=1)
-    df["Jobid"] = df["Jobid"].shift(periods=1)
     df.dropna(inplace=True)
-    df = df[~df["Jobid"].str.endswith(".batch")]
 
     return df
 
@@ -100,7 +117,6 @@ def parse_mem(job):
     return job
 
 
-
 if __name__ == "__main__":
     args = parse_args()
 
@@ -122,7 +138,7 @@ if __name__ == "__main__":
         print(f"Showing random subsample of found jobs (10/{jobs.shape[0]}):")
         print(jobs[cols].sample(10))
 
-    jobs.to_csv(args.outfile)
+    jobs.to_csv(args.outfile, index=False)
     print(f"Wrote complete output to {args.outfile}")
 
 
