@@ -30,11 +30,11 @@ SACCT_FORMAT = ",".join([
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--user", default=os.environ.get('USER'),
+    parser.add_argument("-u", "--user", default=os.environ.get('USER'),
             help="Username [%(default)s].")
-    parser.add_argument("--start", default="now-1week",
+    parser.add_argument("-s", "--start", default="now-1week",
             help="Start of time interval [%(default)s].")
-    parser.add_argument("--outfile", default="jobstats.csv",
+    parser.add_argument("-o", "--outfile", default="jobstats.csv",
             help="Output data to csv table [%(default)s].")
 
     return parser.parse_args()
