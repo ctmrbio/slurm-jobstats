@@ -2,9 +2,9 @@
 """Slurm jobstats on Gandalf."""
 __author__ = "Fredrik Boulund"
 __date__ = "2023"
-__version__ = "0.4"
+__version__ = "0.5"
 
-from sys import argv, exit
+from sys import argv, exit, stdout
 from collections import defaultdict
 import os
 import datetime
@@ -35,7 +35,9 @@ def parse_args():
     parser.add_argument("-s", "--start", default="now-1week",
             help="Start of time interval [%(default)s].")
     parser.add_argument("-o", "--outfile", default="jobstats.csv",
-            help="Output data to csv table [%(default)s].")
+            help="Output data to csv table. Use special filename STDOUT "
+                 "to print output to terminal instead, try piping into "
+                 "'| column -t -s, | less -S' [%(default)s].")
 
     return parser.parse_args()
 
@@ -117,15 +119,7 @@ def parse_mem(job):
     return job
 
 
-if __name__ == "__main__":
-    args = parse_args()
-
-    results = call_sacct(args.user, args.start)
-    jobs = parse_sacct(results)
-
-    jobs["CPU_Efficiency"] = jobs["TotalCPU"] / (jobs["AllocCPUS"] * jobs["Elapsed"])
-    jobs["MEM_Efficiency"] = jobs["MaxRSS"] / jobs["ReqMem"] 
-
+def print_summary(jobs):
     print(f"Found {jobs.shape[0]} COMPLETED jobs since {args.start}, summary:")
     print(jobs.describe())
     cols = [
@@ -138,8 +132,24 @@ if __name__ == "__main__":
         print(f"Showing random subsample of found jobs (10/{jobs.shape[0]}):")
         print(jobs[cols].sample(10))
 
-    jobs.to_csv(args.outfile, index=False)
-    print(f"Wrote complete output to {args.outfile}")
+
+if __name__ == "__main__":
+    args = parse_args()
+
+    results = call_sacct(args.user, args.start)
+    jobs = parse_sacct(results)
+
+    jobs["CPU_Efficiency"] = jobs["TotalCPU"] / (jobs["AllocCPUS"] * jobs["Elapsed"])
+    jobs["MEM_Efficiency"] = jobs["MaxRSS"] / jobs["ReqMem"] 
+
+    if args.outfile == "STDOUT":
+        jobs.to_csv(stdout, index=False)
+    else:
+        print_summary(jobs)
+        jobs.to_csv(args.outfile, index=False)
+        print(f"Wrote complete output to {args.outfile}")
+
+
 
 
 
